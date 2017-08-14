@@ -106,12 +106,18 @@ public class SwipePullRefreshLayout extends SwipeRefreshLayout {
 
     public SwipePullRefreshLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
+        //防止误操作的范围
         mPullSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        //动画插值器
         mDecelerateInterpolator = new DecelerateInterpolator(DECELERATE_INTERPOLATION_FACTOR);
+        //动画时间
         mMediumAnimationDuration = getResources().getInteger(
                 android.R.integer.config_mediumAnimTime);
+        //创建 圆圈和进度条
         createProgressView();
+        //设置 圆圈和进度条的大小
         setSize(MaterialProgressDrawable.LARGE);
+        //获取屏幕参数
         mMetrics = getResources().getDisplayMetrics();
 //        mLoadOriginalOffsetTop = mCurrentPullTargetOffsetTop = 0;
 
@@ -140,13 +146,16 @@ public class SwipePullRefreshLayout extends SwipeRefreshLayout {
         int circleWidth = mLoadCircleView.getMeasuredWidth();
         int circleHeight = mLoadCircleView.getMeasuredHeight();
         if (mLoadOriginalOffsetTop == -1) {
-            //初始化原始位置
+            //加载View控件默认在屏幕的下方
+            //初始化原始位置、当前控件位置等于屏幕的高度
             mLoadOriginalOffsetTop = mCurrentPullTargetOffsetTop = mChildHeight = childHeight;
-
+            //View能滑动的位置Y坐标
             mPullSpinnerOffsetEnd = mLoadOriginalOffsetTop - (int) (DEFAULT_CIRCLE_TARGET * mMetrics.density);
+            //View能滑动的距离
             mTotalPullDistance = (int) (DEFAULT_CIRCLE_TARGET * mMetrics.density);
 
         }
+        //设置当前加载View的位置
         mLoadCircleView.layout((width / 2 - circleWidth / 2), mCurrentPullTargetOffsetTop,
                 (width / 2 + circleWidth / 2), mCurrentPullTargetOffsetTop + circleHeight);
 
@@ -161,6 +170,7 @@ public class SwipePullRefreshLayout extends SwipeRefreshLayout {
         if (mTarget == null) {
             return;
         }
+        //设置View的大小
         mLoadCircleView.measure(MeasureSpec.makeMeasureSpec(mLoadCircleDiameter, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(mLoadCircleDiameter, MeasureSpec.EXACTLY));
         mLoadCircleViewIndex = -1;
@@ -175,23 +185,27 @@ public class SwipePullRefreshLayout extends SwipeRefreshLayout {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        //获取目标控件，指的列表控件
         ensureTarget();
 
         final int action = ev.getActionMasked();
         int pointerIndex;
 
+
         if (mReturningToPullStart && action == MotionEvent.ACTION_DOWN) {
             mReturningToPullStart = false;
         }
 
-        //父控件正在滚动暂时未写mNestedScrollInProgress
+        //如果控件不可触发 || 还能向下滚动 || 正在上拉, 不拦截，父控件正在滚动暂时未写mNestedScrollInProgress
         if (!isEnabled() || mReturningToPullStart || canChildScrollDown() || mPulling) {
             return false;
         }
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
+                //按下时根据位置移动圆圈到指定位置
                 setTargetOffsetTopAndBottom(mLoadOriginalOffsetTop - mLoadCircleView.getTop());
+                //获取按下的第一个手指
                 mActivePointerId = ev.getPointerId(0);
                 mIsBeingPulled = false;
 
@@ -199,14 +213,20 @@ public class SwipePullRefreshLayout extends SwipeRefreshLayout {
                 if (pointerIndex < 0) {
                     return false;
                 }
+                //得到按下的初始位置
                 mInitialPullDownY = ev.getY(pointerIndex);
                 break;
             case MotionEvent.ACTION_MOVE: {
-                pointerIndex = ev.findPointerIndex(mActivePointerId);
-                if (pointerIndex < 0) {
-                    Log.e(LOG_TAG, "Got ACTION_MOVE event but have an invalid active pointer id.");
+                if (mActivePointerId == INVALID_POINTER) {
+                    Log.e(LOG_TAG, "Got ACTION_MOVE event but don't have an active pointer id.");
                     return false;
                 }
+
+                pointerIndex = ev.findPointerIndex(mActivePointerId);
+                if (pointerIndex < 0) {
+                    return false;
+                }
+                //滑动时计算是否移动
                 final float y = ev.getY(pointerIndex);
                 startPull(y);
                 break;
@@ -297,10 +317,14 @@ public class SwipePullRefreshLayout extends SwipeRefreshLayout {
         }
 
 
-        return false;
+        return true;
     }
 
 
+    /**
+     * 设置进度条进度，圆圈移动距离
+     * @param overscrollTop
+     */
     private void movePullSpinner(float overscrollTop) {
         mPullProgress.showArrow(true);
         float originalDragPercent = overscrollTop / mTotalPullDistance;
@@ -552,12 +576,6 @@ public class SwipePullRefreshLayout extends SwipeRefreshLayout {
             }
         }
     };
-
-    @Override
-    public void setRefreshing(boolean refreshing) {
-
-        super.setRefreshing(refreshing);
-    }
 
     /*************************动画 end*******************************/
 
